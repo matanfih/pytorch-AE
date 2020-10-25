@@ -5,11 +5,16 @@ from scipy import ndimage
 
 import torch
 from torchvision.utils import save_image
+from torchvision import transforms
+
 
 from models.VAE import VAE
 from models.AE import AE
 
 from utils import get_interpolations
+
+from datasets import XrayDataset
+
 
 parser = argparse.ArgumentParser(
         description='Main function to call training for different AutoEncoders')
@@ -29,12 +34,22 @@ parser.add_argument('--results_path', type=str, default='results/', metavar='N',
                     help='Where to store images')
 parser.add_argument('--model', type=str, default='AE', metavar='N',
                     help='Which architecture to use')
-parser.add_argument('--dataset', type=str, default='MNIST', metavar='N',
+parser.add_argument('--dataset', type=str, default='XRAY', metavar='N',
                     help='Which dataset to use')
 
-args = parser.parse_args()
-args.cuda = not args.no_cuda and torch.cuda.is_available()
-torch.manual_seed(args.seed)
+import utils
+
+if __name__ == "__main__":
+    # x = XrayDataset(transform=transforms.Compose([utils.Rescale(output_size=128)]))
+    # for i in range(len(x)):
+    #     sample = x[i]
+    #     print(i, sample['image'].size, sample['landmarks'].size)
+
+    args = parser.parse_args()
+    print(args)
+
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    torch.manual_seed(args.seed)
 
 vae = VAE(args)
 ae = AE(args)

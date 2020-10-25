@@ -1,3 +1,5 @@
+import time
+from torch.utils.data import Dataset, DataLoader
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -5,9 +7,11 @@ from torch.nn import functional as F
 from torchvision import datasets, transforms
 
 import sys
+
 sys.path.append('../')
 from architectures import FC_Encoder, FC_Decoder, CNN_Encoder, CNN_Decoder
-from datasets import MNIST, EMNIST, FashionMNIST
+from datasets import MNIST, EMNIST, FashionMNIST, XRAY
+
 
 class Network(nn.Module):
     def __init__(self, args):
@@ -27,10 +31,35 @@ class Network(nn.Module):
         z = self.encode(x.view(-1, 784))
         return self.decode(z)
 
+
 class AE(object):
     def __init__(self, args):
         self.args = args
-        self.device = torch.device("cuda" if args.cuda else "cpu")
+
+        import importlib
+
+        self.csv = ""
+        self.root = ""
+
+        if importlib.util.find_spec("nvsmi") is not None:
+            import nvsmi
+
+            def get_freeish_gpu(samples=5, slp=0.3):
+                if not torch.cuda.is_available():
+                    return None
+
+                gpus = {g.id: g.gpu_util for g in nvsmi.get_gpus()}
+                for _ in range(samples - 1):
+                    time.sleep(slp)
+                    for t in [(g.id, g.gpu_util) for g in nvsmi.get_gpus()]:
+                        gpus[t[0]] += t[1] / samples
+
+                return "cuda:{}".format(min(gpus, key=gpus.get))
+
+            self.device = get_freeish_gpu()
+        else:
+            self.device = torch.device("cuda:7" if args.cuda else "cpu")
+
         self._init_dataset()
         self.train_loader = self.data.train_loader
         self.test_loader = self.data.test_loader
@@ -46,6 +75,9 @@ class AE(object):
             self.data = EMNIST(self.args)
         elif self.args.dataset == 'FashionMNIST':
             self.data = FashionMNIST(self.args)
+        elif str(self.args.dataset) == 'XRAY':
+            self.data = XRAY(self.args)
+
         else:
             print("Dataset not supported")
             sys.exit()
@@ -68,11 +100,11 @@ class AE(object):
             if batch_idx % self.args.log_interval == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                     epoch, batch_idx * len(data), len(self.train_loader.dataset),
-                    100. * batch_idx / len(self.train_loader),
-                    loss.item() / len(data)))
+                           100. * batch_idx / len(self.train_loader),
+                           loss.item() / len(data)))
 
         print('====> Epoch: {} Average loss: {:.4f}'.format(
-              epoch, train_loss / len(self.train_loader.dataset)))
+            epoch, train_loss / len(self.train_loader.dataset)))
 
     def test(self, epoch):
         self.model.eval()
