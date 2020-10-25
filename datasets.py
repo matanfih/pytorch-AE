@@ -80,7 +80,8 @@ class XrayDataset(Dataset):
 
         X_train, X_test, y_train, y_test = train_test_split(image_list, labels, test_size=0.2, random_state=42)
 
-        for X, y, filename in [(X_train, y_train, self.train_csv_fixed_path), (X_test, y_test, self.test_csv_fixed_path)]:
+        for X, y, filename in [(X_train, y_train, self.train_csv_fixed_path),
+                               (X_test, y_test, self.test_csv_fixed_path)]:
             print("writing the X: %s, y: %s -> %s" % (len(X), len(y), filename))
             with open(filename, 'w') as csvf:
                 writer = csv.writer(csvf)
@@ -88,12 +89,16 @@ class XrayDataset(Dataset):
                 writer.writerows(zip(X, y))
         print("%s finished" % self.__pre_process.__name__)
 
-    def __init__(self, csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', transform=None, train=True):
+    def __init__(self, csv_file, root_dir, transform=None, train=True):
         """
         Args:
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
+
+        if not os.path.exists(root_dir):
+            raise Exception("ohh snap!! root directory not found [%s]" % root_dir)
+
         self.orig_csv_path = os.path.join(root_dir, csv_file)
         self.test_csv_fixed_path = os.path.join(root_dir, "{}{}".format(self.FIXED_TEST, csv_file))
         self.train_csv_fixed_path = os.path.join(root_dir, "{}{}".format(self.FIXED_TRAIN, csv_file))
@@ -105,7 +110,7 @@ class XrayDataset(Dataset):
 
         elif train:
             self.xray_frame = pd.read_csv(self.train_csv_fixed_path)
-        else: # test
+        else:  # test
             self.xray_frame = pd.read_csv(self.test_csv_fixed_path)
 
         self.transform = transform
@@ -134,7 +139,7 @@ class XRAY(object):
     def __init__(self, args):
         kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
-            XrayDataset(train=True, transform=transforms.Compose([Rescale(128), transforms.ToTensor()])),
+            XrayDataset(csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', train=True, transform=transforms.Compose([Rescale(128), transforms.ToTensor()])),
             batch_size=args.batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(
             XrayDataset(train=False, transform=transforms.Compose([Rescale(128), transforms.ToTensor()])),

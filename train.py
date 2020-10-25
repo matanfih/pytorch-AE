@@ -13,8 +13,6 @@ from models.AE import AE
 
 from utils import get_interpolations
 
-from datasets import XrayDataset
-
 
 parser = argparse.ArgumentParser(
         description='Main function to call training for different AutoEncoders')

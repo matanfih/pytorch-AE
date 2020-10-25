@@ -5,7 +5,7 @@ import torch.utils.data
 from torch import nn, optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
-
+import device_utils
 import sys
 
 sys.path.append('../')
@@ -40,25 +40,10 @@ class AE(object):
 
         self.csv = ""
         self.root = ""
-
-        if importlib.util.find_spec("nvsmi") is not None:
-            import nvsmi
-
-            def get_freeish_gpu(samples=5, slp=0.3):
-                if not torch.cuda.is_available():
-                    return None
-
-                gpus = {g.id: g.gpu_util for g in nvsmi.get_gpus()}
-                for _ in range(samples - 1):
-                    time.sleep(slp)
-                    for t in [(g.id, g.gpu_util) for g in nvsmi.get_gpus()]:
-                        gpus[t[0]] += t[1] / samples
-
-                return "cuda:{}".format(min(gpus, key=gpus.get))
-
-            self.device = get_freeish_gpu()
+        if args.cuda:
+            self.device = device_utils.get_freeish_gpu()
         else:
-            self.device = torch.device("cuda:7" if args.cuda else "cpu")
+            self.device = device_utils.get_cpu()
 
         self._init_dataset()
         self.train_loader = self.data.train_loader
