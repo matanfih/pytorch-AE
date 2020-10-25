@@ -1,7 +1,5 @@
 from __future__ import print_function, division
 from glob import glob
-from os import listdir
-from os.path import join
 import csv, time
 import PIL
 import torch

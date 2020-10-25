@@ -51,13 +51,14 @@ if __name__ == "__main__":
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     torch.manual_seed(args.seed)
 
-vae = VAE(args)
-ae = AE(args)
-architectures = {'AE':  ae,
-                 'VAE': vae}
+    #vae = VAE(args)
+    ae = AE(args)
+    architectures = {'AE': ae,
+                     'VAE': None}
 
-print(args.model)
-if __name__ == "__main__":
+    print(args.model)
+
+
     try:
         os.stat(args.results_path)
     except :
