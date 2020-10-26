@@ -1,5 +1,6 @@
 import time
 from torch.utils.data import Dataset, DataLoader
+import numpy as np
 import torch
 import torch.utils.data
 from torch import nn, optim
@@ -16,10 +17,12 @@ from datasets import MNIST, EMNIST, FashionMNIST, XRAY
 class Network(nn.Module):
     def __init__(self, args):
         super(Network, self).__init__()
-        output_size = args.embedding_size
-        self.encoder = CNN_Encoder(output_size)
+        #output_size = args.embedding_size
+        output_size = 4096
+        self.input_size = (1, 128, 128)
+        self.encoder = CNN_Encoder(output_size, self.input_size)
 
-        self.decoder = CNN_Decoder(args.embedding_size)
+        self.decoder = CNN_Decoder(output_size, self.input_size)
 
     def encode(self, x):
         return self.encoder(x)
@@ -28,15 +31,15 @@ class Network(nn.Module):
         return self.decoder(z)
 
     def forward(self, x):
-        z = self.encode(x.view(-1, 784))
+        print(x.view, type(x))
+        #z = self.encode(x.view(-1, 784))
+        z = self.encode(x.view(-1, np.prod(self.input_size)))
         return self.decode(z)
 
 
 class AE(object):
     def __init__(self, args):
         self.args = args
-
-        import importlib
 
         self.csv = ""
         self.root = ""
@@ -68,7 +71,8 @@ class AE(object):
             sys.exit()
 
     def loss_function(self, recon_x, x):
-        BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
+        #BCE = F.binary_cross_entropy(recon_x, x.view(-1, 784), reduction='sum')
+        BCE = F.l1_loss(input=recon_x, target=x)
         return BCE
 
     def train(self, epoch):
