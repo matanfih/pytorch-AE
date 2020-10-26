@@ -78,7 +78,36 @@ class XrayDataset(Dataset):
             print("images left: %s" % (self_len - index))
             index += 1
 
-        X_train, X_test, y_train, y_test = train_test_split(image_list, labels, test_size=0.2, random_state=42)
+        label_map = {}
+        label_translated = []
+        for l in labels:
+            for pathology in l.split('|'):
+                if pathology not in label_map:
+                    label_map[pathology] = 0
+                label_map[pathology] += 1
+
+        print("labels distribution: %s" % label_map)
+
+        if len(set(label_map.values())) != len(label_map.values()):
+            index = 1
+            for k in label_map.keys():
+                label_map[k] = index
+                index += 1
+
+        print("label translation: %s" % label_map)
+
+        for l in labels:
+            translated = []
+            for p in l.split('|'):
+                translated.append(label_map[p])
+
+            label_translated.append("|".join([str(t) for t in translated]))
+
+        import json
+        with open(self.meta_json_path, 'w') as fp:
+            json.dump(label_map, fp=fp)
+
+        X_train, X_test, y_train, y_test = train_test_split(image_list, label_translated, test_size=0.2, random_state=42)
 
         for X, y, filename in [(X_train, y_train, self.train_csv_fixed_path),
                                (X_test, y_test, self.test_csv_fixed_path)]:
@@ -102,6 +131,7 @@ class XrayDataset(Dataset):
         self.orig_csv_path = os.path.join(root_dir, csv_file)
         self.test_csv_fixed_path = os.path.join(root_dir, "{}{}".format(self.FIXED_TEST, csv_file))
         self.train_csv_fixed_path = os.path.join(root_dir, "{}{}".format(self.FIXED_TRAIN, csv_file))
+        self.meta_json_path = os.path.join(root_dir, "meta.json")
         self.root_dir = root_dir
 
         if not os.path.exists(self.test_csv_fixed_path) or not os.path.exists(self.train_csv_fixed_path):
@@ -123,24 +153,28 @@ class XrayDataset(Dataset):
             idx = idx.tolist()
 
         img_name = self.xray_frame.iloc[idx]["Image Index"]
-        image = io.imread(img_name)
+        image = PIL.Image.open(img_name).convert('LA')
         xray = self.xray_frame.iloc[idx, 1]
         xray = np.array([xray])
         # xray = xray.astype('float').reshape(-1, 2)
         sample = {'image': image, 'landmarks': xray}
 
         if self.transform:
-            sample = self.transform(sample)
+            image = self.transform(image)
 
-        return sample['image'], sample['landmarks']
+        return image, xray if type(xray) is str else 0
+        #return sample['image'], sample['landmarks']
 
 
 class XRAY(object):
     def __init__(self, args):
         kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
-            XrayDataset(csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', train=True, transform=transforms.Compose([Rescale(128), transforms.ToTensor()])),
+            XrayDataset(csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', train=True,
+                        transform=transforms.Compose([transforms.Resize(128, PIL.Image.BICUBIC), transforms.ToTensor()])),
+
             batch_size=args.batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(
-            XrayDataset(train=False, transform=transforms.Compose([Rescale(128), transforms.ToTensor()])),
+            XrayDataset(csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', train=False,
+                        transform=transforms.Compose([transforms.Resize(128, PIL.Image.BICUBIC), transforms.ToTensor()])),
             batch_size=args.batch_size, shuffle=True, **kwargs)
