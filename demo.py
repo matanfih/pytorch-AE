@@ -62,6 +62,51 @@ def main():
 
     retransformed.save(os.path.join(image_store, 'ae_{}'.format(os.path.basename(img_path))))
 
+    from skimage.measure import compare_ssim
+    import imutils
+    import cv2
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    im1 = np.array(img)
+    im2 = np.array(retransformed)
+
+    (score, diff) = compare_ssim(im1, im2, full=True)
+    diff = (diff * 255).astype("uint8")
+    print("SSIM: {}".format(score))
+
+    thresh = cv2.threshold(diff, 0, 255,
+                           cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
+    cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                            cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+
+    for c in cnts:
+        # compute the bounding box of the contour and then draw the
+        # bounding box on both input images to represent where the two
+        # images differ
+        (x, y, w, h) = cv2.boundingRect(c)
+        cv2.rectangle(im1, (x, y), (x + w, y + h), (0, 0, 255), 2)
+        cv2.rectangle(im2, (x, y), (x + w, y + h), (0, 0, 255), 2)
+    # show the output images
+
+    fig, ax = plt.subplots(2, 2)
+
+    ax[0][0].imshow(im1)
+    ax[0][0].set_title('original')
+
+    ax[0][1].imshow(im2)
+    ax[0][1].set_title('autoencoder')
+
+    ax[1][0].imshow(diff)
+    ax[1][0].set_title('diff')
+
+    ax[1][1].imshow(thresh)
+    ax[1][1].set_title('thresh')
+
+    plt.savefig(os.path.join(image_store, 'ae_diff_{}'.format(os.path.basename(img_path))))
+    plt.close(fig)
     # for i in range(num_test_samples):
     #     out = preds[i]
     #     out = out.cpu().numpy()
