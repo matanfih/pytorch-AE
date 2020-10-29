@@ -3,6 +3,7 @@ from glob import glob
 import csv, time
 import PIL
 import torch
+
 from PIL.Image import Image
 from torchvision import datasets, transforms
 import os
@@ -15,43 +16,43 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 from utils import Rescale, ToTensor
 from sklearn.model_selection import train_test_split
-
+import utils as common
 
 class MNIST(object):
-    def __init__(self, args):
+    def __init__(self, batch_size):
         kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
             datasets.MNIST('data/mnist', train=True, download=True,
                            transform=transforms.ToTensor()),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+            batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(
             datasets.MNIST('data/mnist', train=False, transform=transforms.ToTensor()),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+            batch_size=batch_size, shuffle=True, **kwargs)
 
 
 class EMNIST(object):
-    def __init__(self, args):
+    def __init__(self, batch_size):
         kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
             datasets.EMNIST('data/emnist', train=True, download=True, split='byclass',
                             transform=transforms.ToTensor()),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+            batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(
             datasets.EMNIST('data/emnist', train=False, split='byclass',
                             transform=transforms.ToTensor()),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+            batch_size=batch_size, shuffle=True, **kwargs)
 
 
 class FashionMNIST(object):
-    def __init__(self, args):
-        kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+    def __init__(self, batch_size):
+        kwargs = {'num_workers': 1, 'pin_memory': True}
         self.train_loader = torch.utils.data.DataLoader(
             datasets.FashionMNIST('data/fmnist', train=True, download=True,
                                   transform=transforms.ToTensor()),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+            batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(
             datasets.FashionMNIST('data/fmnist', train=False, transform=transforms.ToTensor()),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+            batch_size=batch_size, shuffle=True, **kwargs)
 
 
 class XrayDataset(Dataset):
@@ -153,28 +154,25 @@ class XrayDataset(Dataset):
             idx = idx.tolist()
 
         img_name = self.xray_frame.iloc[idx]["Image Index"]
-        image = PIL.Image.open(img_name).convert('LA')
+        image = PIL.Image.open(img_name).convert('L')
         xray = self.xray_frame.iloc[idx, 1]
         xray = np.array([xray])
-        # xray = xray.astype('float').reshape(-1, 2)
-        sample = {'image': image, 'landmarks': xray}
 
         if self.transform:
             image = self.transform(image)
 
-        return image, xray if type(xray) is str else 0
-        #return sample['image'], sample['landmarks']
+        return image, xray if type(xray) is int else 0
 
 
 class XRAY(object):
-    def __init__(self, args):
-        kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+    def __init__(self, batch_size):
+        #kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
             XrayDataset(csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', train=True,
-                        transform=transforms.Compose([transforms.Resize(128, PIL.Image.BICUBIC), transforms.ToTensor()])),
+                        transform=common.resize128_to_tensor()),
+            batch_size=batch_size, shuffle=True)
 
-            batch_size=args.batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(
             XrayDataset(csv_file='Data_Entry_2017_v2020.csv', root_dir='/data/matan/nih', train=False,
-                        transform=transforms.Compose([transforms.Resize(128, PIL.Image.BICUBIC), transforms.ToTensor()])),
-            batch_size=args.batch_size, shuffle=True, **kwargs)
+                        transform=common.resize128_to_tensor()),
+            batch_size=batch_size, shuffle=True)

@@ -36,22 +36,25 @@ class CNN_Encoder(nn.Module):
 
         # convolutions
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels=1,
-                      out_channels=self.channel_mult * 1,
-                      kernel_size=4,
-                      stride=1,
-                      padding=1),
+            nn.Conv2d(1, self.channel_mult * 1, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(self.channel_mult * 1, self.channel_mult * 2, 4, 2, 1),
+
+            # 128 *128 * (channel = 16)
+            nn.Conv2d(self.channel_mult * 1, self.channel_mult * 2, kernel_size=4, stride=2, padding=1),
+
             nn.BatchNorm2d(self.channel_mult * 2),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(self.channel_mult * 2, self.channel_mult * 4, 4, 2, 1),
+
+            # 64 * 64  * (2*channel * 32)
+            nn.Conv2d(self.channel_mult * 2, self.channel_mult * 4, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(self.channel_mult * 4),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(self.channel_mult * 4, self.channel_mult * 8, 4, 2, 1),
+
+            nn.Conv2d(self.channel_mult * 4, self.channel_mult * 8, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(self.channel_mult * 8),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(self.channel_mult * 8, self.channel_mult * 16, 3, 2, 1),
+
+            nn.Conv2d(self.channel_mult * 8, self.channel_mult * 16, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(self.channel_mult * 16),
             nn.LeakyReLU(0.2, inplace=True)
         )
@@ -69,7 +72,8 @@ class CNN_Encoder(nn.Module):
         return int(np.prod(f.size()[1:]))
 
     def forward(self, x):
-        x = self.conv(x.view(-1, *self.input_size))
+        #x = self.conv(x.view(-1, *self.input_size))
+        x = self.conv(x)
         x = x.view(-1, self.flat_fts)
         return self.linear(x)
 
@@ -80,20 +84,20 @@ class CNN_Decoder(nn.Module):
         self.input_size = input_size
         # self.input_height = 28
         # self.input_width = 28
-        #self.input_dim = embedding_size
+        # self.input_dim = embedding_size
         self.channel_mult = 16
         self.output_channels = 1
-        self.fc_output_dim = 8*8*256 #512
+        self.fc_output_dim = 8 * 8 * 256  # 16384
 
         self.fc = nn.Sequential(
-            nn.Linear(latent_size, self.fc_output_dim),
+            nn.Linear(latent_size, self.fc_output_dim),  # latent_size -> self.fc_output_dim
             nn.BatchNorm1d(self.fc_output_dim),
             nn.ReLU(True)
         )
 
         self.deconv = nn.Sequential(
             # input is Z, going into a convolution
-            nn.ConvTranspose2d(self.fc_output_dim, self.channel_mult * 4,
+            nn.ConvTranspose2d(self.fc_output_dim//(8 * 8), self.channel_mult * 4,
                                4, 2, 1, bias=False),
             nn.BatchNorm2d(self.channel_mult * 4),
             nn.ReLU(True),
@@ -115,6 +119,7 @@ class CNN_Decoder(nn.Module):
 
     def forward(self, x):
         x = self.fc(x)
-        x = x.view(-1, self.fc_output_dim, 1, 1)
+        #x = x.view(-1, self.fc_output_dim, 1, 1)
+        x = x.view(-1, 256, self.input_size[1]//16, self.input_size[2]//16)
         x = self.deconv(x)
-        return x.view(-1, np.prod(self.input_size))
+        return x

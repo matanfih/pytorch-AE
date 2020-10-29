@@ -1,7 +1,8 @@
+import PIL
 import numpy as np
 import torch
 from skimage import io, transform
-
+from torchvision import datasets, transforms
 
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
@@ -53,6 +54,14 @@ class Rescale(object):
         return {'image': img, 'landmarks': landmarks}
 
 
+def resize128_to_tensor():
+    return transforms.Compose([transforms.Resize(128, PIL.Image.BICUBIC), transforms.ToTensor()])
+
+
+def to_PIL_resize1024():
+    return transforms.Compose([transforms.ToPILImage(), transforms.Resize(1024, PIL.Image.BICUBIC)])
+
+
 def get_interpolations(args, model, device, images, images_per_row=20):
     model.eval()
     with torch.no_grad():
@@ -67,7 +76,7 @@ def get_interpolations(args, model, device, images, images_per_row=20):
             mu, logvar = model.encode(images.view(-1, 784))
             embeddings = model.reparameterize(mu, logvar).cpu()
         elif args.model == 'AE':
-            embeddings = model.encode(images.view(-1, 784))
+            embeddings = model.encode(images)
 
         interps = []
         for i in range(0, images_per_row + 1, 1):

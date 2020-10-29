@@ -45,17 +45,22 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     print(args)
+    checkpoint_dir = args.results_path
+    checkpoint_path = os.path.join(checkpoint_dir, 'checkpoint_{}.pt')
+
+    if not os.path.exists(checkpoint_dir):
+        os.mkdir(checkpoint_dir)
+
+    print("checkpoint will be set: %s" % checkpoint_dir)
 
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     torch.manual_seed(args.seed)
 
-    #vae = VAE(args)
-    ae = AE(args)
+    ae = AE(dataset=args.dataset, is_cuda=True, batch_size=128, log_interval=10)
     architectures = {'AE': ae,
                      'VAE': None}
 
     print(args.model)
-
 
     try:
         os.stat(args.results_path)
@@ -71,27 +76,30 @@ if __name__ == "__main__":
         print('---------------------------------------------------------')
         sys.exit()
 
+
+
     try:
         for epoch in range(1, args.epochs + 1):
             autoenc.train(epoch)
             autoenc.test(epoch)
+            torch.save(autoenc.state_dict(), checkpoint_path.format(epoch))
     except (KeyboardInterrupt, SystemExit):
         print("Manual Interruption")
 
-    with torch.no_grad():
-        images, _ = next(iter(autoenc.test_loader))
-        images = images.to(autoenc.device)
-        images_per_row = 16
-        interpolations = get_interpolations(args, autoenc.model, autoenc.device, images, images_per_row)
-
-        sample = torch.randn(64, args.embedding_size).to(autoenc.device)
-        sample = autoenc.model.decode(sample).cpu()
-        save_image(sample.view(64, 1, 28, 28),
-                '{}/sample_{}_{}.png'.format(args.results_path, args.model, args.dataset))
-        save_image(interpolations.view(-1, 1, 28, 28),
-                '{}/interpolations_{}_{}.png'.format(args.results_path, args.model, args.dataset),  nrow=images_per_row)
-        interpolations = interpolations.cpu()
-        interpolations = np.reshape(interpolations.data.numpy(), (-1, 28, 28))
-        interpolations = ndimage.zoom(interpolations, 5, order=1)
-        interpolations *= 256
-        imageio.mimsave('{}/animation_{}_{}.gif'.format(args.results_path, args.model, args.dataset), interpolations.astype(np.uint8))
+    # with torch.no_grad():
+    #     images, _ = next(iter(autoenc.test_loader))
+    #     images = images.to(autoenc.device)
+    #     images_per_row = 16
+    #     interpolations = get_interpolations(args, autoenc.model, autoenc.device, images, images_per_row)
+    #
+    #     sample = torch.randn(64, args.embedding_size).to(autoenc.device)
+    #     sample = autoenc.model.decode(sample).cpu()
+    #     save_image(sample.view(64, 1, 28, 28),
+    #             '{}/sample_{}_{}.png'.format(args.results_path, args.model, args.dataset))
+    #     save_image(interpolations.view(-1, 1, 28, 28),
+    #             '{}/interpolations_{}_{}.png'.format(args.results_path, args.model, args.dataset),  nrow=images_per_row)
+    #     interpolations = interpolations.cpu()
+    #     interpolations = np.reshape(interpolations.data.numpy(), (-1, 28, 28))
+    #     interpolations = ndimage.zoom(interpolations, 5, order=1)
+    #     interpolations *= 256
+    #     imageio.mimsave('{}/animation_{}_{}.gif'.format(args.results_path, args.model, args.dataset), interpolations.astype(np.uint8))
